@@ -253,7 +253,13 @@ export const NeonTopologyPanel: React.FC<Props> = ({ options, data, width, heigh
     <div 
       id="neon-topology-panel"
       ref={containerRef}
-      style={{ width, height, overflow: 'hidden', cursor: isDrawing ? 'crosshair' : (isPanning ? 'grabbing' : 'grab') }}
+      style={{ 
+        width, 
+        height, 
+        overflow: 'hidden', 
+        position: 'relative',
+        cursor: isDrawing ? 'crosshair' : (isPanning ? 'grabbing' : 'grab') 
+      }}
       onMouseDown={handleMouseDown}
       onMouseMove={handleMouseMove}
       onMouseUp={handleMouseUp}

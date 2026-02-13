@@ -1,5 +1,11 @@
 # Registro de Alterações
 
+## 1.0.2 (2026-02-13)
+
+### Correções
+
+- **UI**: Correção de posicionamento da Toolbar e ContextMenu (adicionado `position: relative` ao container principal) para garantir que os controles de edição sejam visíveis.
+
 ## 1.0.1 (2026-02-13)
 
 ### Funcionalidades
