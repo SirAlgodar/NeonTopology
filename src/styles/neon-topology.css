@@ -1,0 +1,778 @@
+/* --- BASE --- */
+#neon-topology-panel {
+    width: 100%; height: 100%; position: relative;
+    background: radial-gradient(circle at center, #1e293b26 0%, #0206171d 100%);
+    font-family: 'Rajdhani', sans-serif; overflow: hidden; color: white; user-select: none;
+}
+.bg-grid {
+    position: absolute; width: 100%; height: 100%;
+    background-image: linear-gradient(rgba(255, 255, 255, 0.03) 1px, transparent 1px),
+                      linear-gradient(90deg, rgba(255, 255, 255, 0.03) 1px, transparent 1px);
+    background-size: 30px 30px; pointer-events: none; z-index: 0;
+}
+
+/* LAYERS - CORREÇÃO PARA CANVAS INFINITO */
+#topology-lines { 
+    position: absolute; 
+    top: 0; 
+    left: 0; 
+    width: 100%; 
+    height: 100%; 
+    z-index: 1 !important; 
+    pointer-events: none; 
+    
+    /* O SEGREDO: Permite desenhar fora dos limites da tela inicial */
+    overflow: visible !important; 
+}
+
+#breakpoints-layer { 
+    position: absolute; 
+    top: 0; 
+    left: 0; 
+    width: 100%; 
+    height: 100%; 
+    z-index: 15 !important; 
+    pointer-events: none;
+    
+    /* Permite pontos de quebra fora da tela */
+    overflow: visible !important; 
+}
+
+#nodes-layer { 
+    position: absolute; 
+    width: 100%; 
+    height: 100%; 
+    z-index: 20 !important; 
+    pointer-events: none;
+    
+    /* Permite nós fora da tela */
+    overflow: visible !important; 
+}
+
+#labels-layer {
+    position: absolute; 
+    width: 100%; 
+    height: 100%; 
+    z-index: 16 !important; 
+    pointer-events: none;
+    overflow: visible !important;
+}
+
+/* Garante que o palco do zoom também não corte nada */
+#zoom-stage {
+    width: 100%; 
+    height: 100%;
+    transform-origin: 0 0; 
+    will-change: transform;
+    overflow: visible !important;
+}
+
+/* LINHAS */
+.connector-line { 
+    fill: none; stroke: #334155; stroke-width: 4px; cursor: context-menu; pointer-events: stroke; transition: stroke 0.2s;
+}
+.connector-line:hover { stroke: #fbbf24 !important; } 
+.line-up { stroke: #39ff14 !important; stroke-dasharray: 8, 4; animation: dashFlow 1s linear infinite; }
+.line-ping { stroke: #00ffff !important; stroke-dasharray: 0; }
+@keyframes dashFlow { to { stroke-dashoffset: -12; } }
+
+/* ESTADOS DINÂMICOS DA LINHA */
+.line-online { 
+    stroke: #39ff14 !important; 
+    stroke-dasharray: 8, 4; 
+    animation: dashFlow 1s linear infinite; 
+    filter: drop-shadow(0 0 2px #39ff14);
+}
+
+.line-offline { 
+    stroke: #ff0000 !important; 
+    stroke-dasharray: 0; /* Linha sólida */
+    animation: none; /* Sem movimento */
+    filter: drop-shadow(0 0 2px #ff0000);
+}
+
+/* BREAKPOINTS */
+.breakpoint-handle {
+    position: absolute; width: 12px; height: 12px; background: #0f172a; border: 2px solid #fbbf24; border-radius: 50%;
+    transform: translate(-50%, -50%); cursor: move; pointer-events: auto; box-shadow: 0 0 5px #fbbf24; z-index: 100;
+}
+.breakpoint-handle:hover { background: #fbbf24; transform: translate(-50%, -50%) scale(1.3); }
+
+/* CARDS */
+.node-card {
+    position: absolute; transform: translate(-50%, -50%); 
+    /* Tamanho padrão inicial */
+    min-width: 90px; min-height: 50px;
+    background: #0f172a; border: 1px solid rgba(255, 255, 255, 0.1); border-radius: 6px;
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    padding: 6px 4px; box-shadow: 0 5px 15px rgba(0,0,0,0.5); z-index: 20;
+    pointer-events: auto; cursor: grab; 
+    transition: box-shadow 0.3s, border-color 0.3s, background-color 0.3s, transform 0.1s; 
+    /* Importante: overflow hidden para o texto não vazar se ficar muito pequeno */
+    overflow: hidden;
+}
+.node-card:active { cursor: grabbing; z-index: 100 !important; box-shadow: 0 0 20px rgba(57, 255, 20, 0.4); }
+
+/* --- AJUSTE INSERIDO AQUI: Efeito de brilho inferior --- */
+/* --- AJUSTE: Efeito de brilho em TODOS os cards --- */
+.node-card::after { 
+    content: ''; 
+    position: absolute; bottom: 0; left: 0; right: 0; height: 3px; 
+    /* Cor Padrão (Verde Neon) */
+    background: #39ff14; 
+    box-shadow: 0 0 5px #39ff14; 
+    border-radius: 0 0 6px 6px;
+    pointer-events: none; /* Importante para não atrapalhar o resize */
+    transition: background 0.3s, box-shadow 0.3s;
+}
+
+/* Se for Zabbix, usa vermelho por padrão (opcional, se quiser manter identidade) */
+.card-zabbix::after {
+    background: #ff4d4d; box-shadow: 0 0 5px #ff4d4d;
+}
+
+/* Se estiver OFFLINE, a barrinha fica VERMELHA */
+.status-offline::after {
+    background: #ff0000 !important;
+    box-shadow: 0 0 8px #ff0000 !important;
+}
+
+/* Se estiver ONLINE, garante o VERDE */
+.status-online::after {
+    background: #39ff14 !important;
+    box-shadow: 0 0 5px #39ff14 !important;
+}
+/* ------------------------------------------------------- */
+
+/* STATUS */
+.status-online { border-color: rgba(57, 255, 20, 0.6) !important; }
+.status-online .node-icon { color: #39ff14 !important; }
+
+.status-offline {
+    border-color: #ff0000 !important; box-shadow: 0 0 15px rgba(255, 0, 0, 0.6) !important;
+    animation: pulseOffline 1.5s infinite;
+}
+.status-offline .node-icon { color: #ff0000 !important; }
+.status-offline .node-name { color: #ffadad !important; }
+
+@keyframes pulseOffline {
+    0% { box-shadow: 0 0 5px rgba(255, 0, 0, 0.6); }
+    50% { box-shadow: 0 0 20px rgba(255, 0, 0, 0.9); }
+    100% { box-shadow: 0 0 5px rgba(255, 0, 0, 0.6); }
+}
+
+.node-card.is-connecting { border-color: #fbbf24; box-shadow: 0 0 15px #fbbf24; animation: pulseConnect 1s infinite; cursor: crosshair !important; }
+@keyframes pulseConnect { 0% { box-shadow: 0 0 5px #fbbf24; } 50% { box-shadow: 0 0 20px #fbbf24; } 100% { box-shadow: 0 0 5px #fbbf24; } }
+
+/* RESIZE */
+.resize-handle { position: absolute; bottom: 0; right: 0; width: 15px; height: 15px; cursor: nwse-resize; display: none; z-index: 101; }
+.resize-handle::after { content: ''; position: absolute; bottom: 3px; right: 3px; width: 0; height: 0; border-style: solid; border-width: 0 0 8px 8px; border-color: transparent transparent #39ff14 transparent; }
+.node-card.is-resizable { border: 1px dashed #39ff14; }
+.node-card.is-resizable .resize-handle { display: block; }
+
+/* Texto e Icone - Tamanhos base definidos aqui, mas sobrescritos pelo JS */
+.node-name { 
+    font-size: 10px; 
+    font-weight: 700; 
+    text-transform: uppercase; 
+    color: #fff; 
+    margin-top: 4px; 
+    pointer-events: none; 
+    text-align: center; 
+    
+    /* AJUSTES PARA QUEBRA DE LINHA */
+    width: 100%;              /* Ocupa a largura do card */
+    white-space: normal;      /* Permite múltiplas linhas */
+    word-wrap: break-word;    /* Quebra palavras muito longas se necessário */
+    overflow-wrap: break-word; 
+    line-height: 1.1;         /* Melhora o espaçamento entre linhas */
+    padding: 0 2px;           /* Margem interna para não colar na borda */
+}
+.node-icon { 
+    font-size: 18px; /* Base */
+    pointer-events: none; 
+}
+
+/* UI ELEMENTS */
+.mode-message { position: absolute; top: 20px; left: 50%; transform: translateX(-50%); background: rgba(251, 191, 36, 0.9); color: black; padding: 5px 15px; border-radius: 20px; font-weight: bold; font-size: 12px; z-index: 200; pointer-events: none; box-shadow: 0 0 10px rgba(0,0,0,0.5); }
+#save-layout-btn { position: absolute; top: 10px; right: 10px; z-index: 999; background: #39ff14; color: #000; border: none; padding: 8px 12px; border-radius: 4px; font-weight: bold; cursor: pointer; opacity: 0.8; transition: 0.2s; }
+#save-layout-btn:hover { opacity: 1; transform: scale(1.05); }
+
+/* MENUS & MODALS */
+.context-menu { display: none; position: absolute; z-index: 9999; background: #0f172a; border: 1px solid #39ff14; border-radius: 4px; box-shadow: 0 0 15px rgba(0,0,0,0.8); width: 170px; }
+.context-menu ul { list-style: none; padding: 0; margin: 0; }
+.context-menu li { padding: 10px 15px; cursor: pointer; color: #fff; font-size: 12px; display: flex; align-items: center; gap: 8px; transition: background 0.2s; }
+.context-menu li:hover { background: rgba(57, 255, 20, 0.2); }
+.context-menu li.delete-item:hover { background: rgba(255, 0, 0, 0.3); color: #ffadad; }
+
+.modal-hidden { display: none !important; }
+#export-modal, #icon-modal, #data-modal, #link-color-modal { 
+    display: flex; 
+    position: absolute; 
+    top: 0; 
+    left: 0; 
+    width: 100%; 
+    height: 100%; 
+    background: rgba(0,0,0,0.85); 
+    z-index: 1000; 
+    justify-content: center; 
+    align-items: center; 
+}
+.modal-content { background: #0f172a; border: 1px solid #334155; padding: 20px; width: 80%; max-height: 90%; border-radius: 8px; display: flex; flex-direction: column; }
+.icon-picker-content { width: 550px; }
+.data-picker-content { width: 600px; height: 500px; } 
+
+.modal-content h3 { margin-top: 0; color: #39ff14; }
+.modal-content p { color: #ccc; font-size: 12px; margin-bottom: 10px; }
+#export-area { flex: 1; background: #020617; color: #a5b4fc; border: 1px solid #1e293b; font-family: 'Roboto Mono', monospace; font-size: 12px; padding: 10px; resize: none; }
+.modal-actions { margin-top: 10px; display: flex; gap: 10px; justify-content: flex-end; }
+.modal-actions button { padding: 8px 16px; border: none; border-radius: 4px; cursor: pointer; font-weight: bold; background: #334155; color: white; }
+#copy-btn { background: #39ff14; color: black; }
+
+.icon-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; padding: 10px; overflow-y: auto; background: #020617; border-radius: 4px; }
+.icon-option { display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 15px 10px; background: #1e293b; border: 1px solid transparent; border-radius: 4px; cursor: pointer; color: #94a3b8; transition: 0.2s; }
+.icon-option:hover { background: #39ff14; color: #000; transform: scale(1.05); }
+.icon-option i { font-size: 24px; margin-bottom: 8px; }
+.icon-option span { font-size: 10px; text-transform: uppercase; text-align: center; }
+
+.data-list-header { display: flex; justify-content: space-between; padding: 5px 10px; font-weight: bold; color: #94a3b8; border-bottom: 1px solid #334155; }
+.data-list { flex: 1; overflow-y: auto; background: #020617; border: 1px solid #1e293b; border-radius: 4px; }
+.data-item { display: flex; justify-content: space-between; align-items: center; padding: 10px; border-bottom: 1px solid #1e293b; cursor: pointer; transition: 0.2s; }
+.data-item:hover { background: rgba(57, 255, 20, 0.1); }
+.data-item .d-name { color: #fff; font-size: 12px; }
+.data-item .d-value { font-weight: bold; font-family: 'Roboto Mono'; }
+.val-1 { color: #39ff14; } .val-0 { color: #ff4d4d; }
+
+/* ESTILO DA BARRA DE PESQUISA */
+.search-input {
+    width: 100%;
+    padding: 10px;
+    margin-bottom: 10px;
+    background: #020617;
+    border: 1px solid #334155;
+    border-radius: 4px;
+    color: #fff;
+    font-family: 'Roboto Mono', monospace;
+    font-size: 12px;
+    outline: none;
+    transition: border-color 0.3s;
+}
+
+.search-input:focus {
+    border-color: #39ff14; /* Brilho verde ao clicar */
+    box-shadow: 0 0 5px rgba(57, 255, 20, 0.2);
+}
+/* TOOLTIP FLUTUANTE */
+.hover-tooltip {
+    position: absolute;
+    background: rgba(15, 23, 42, 0.95);
+    border: 1px solid #39ff14;
+    color: #fff;
+    padding: 8px 12px;
+    border-radius: 4px;
+    font-size: 12px;
+    font-family: 'Roboto Mono', monospace;
+    pointer-events: none; /* O mouse ignora o tooltip para não piscar */
+    z-index: 9999;
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.5);
+    white-space: nowrap;
+    transform: translate(15px, 15px); /* Afasta um pouco do cursor */
+}
+
+/* Quando offline, muda a borda para vermelho */
+.hover-tooltip.offline {
+    border-color: #ff0000;
+    color: #ffadad;
+}
+/* Cor para valor OFF/Baixo */
+.val-display-off { color: #ff4d4d; text-shadow: 0 0 10px rgba(255, 0, 0, 0.3); }
+/* Cor para valor ON/Normal */
+.val-display-on { color: #39ff14; text-shadow: 0 0 10px rgba(57, 255, 20, 0.3); }
+/* --- CORREÇÃO DO MODAL DE DETALHES --- */
+#connection-details-modal {
+    /* Garante que ocupe a tela toda */
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    
+    /* Fundo escuro semi-transparente para focar na janela */
+    background: rgba(2, 6, 23, 0.95); 
+    backdrop-filter: blur(2px); /* Opcional: desfoque no fundo */
+    
+    /* Centraliza a janela no meio */
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    
+    /* Z-INDEX SUPREMO: Garante que fique acima dos nós (z-index 20) e linhas */
+    z-index: 99999 !important; 
+}
+
+/* Garante que o conteúdo do modal tenha cor sólida */
+#connection-details-modal .modal-content {
+    background: #0f172a; /* Cor de fundo do card */
+    border: 1px solid #39ff14; /* Borda neon */
+    box-shadow: 0 0 50px rgba(0,0,0,0.8); /* Sombra forte para destacar */
+    position: relative;
+    z-index: 100000;
+}
+/* ETIQUETAS NA LINHA (Data Labels) */
+/* ETIQUETAS NA LINHA (Data Labels) */
+.conn-label {
+    position: absolute;
+    transform: translate(-50%, -50%); /* Centraliza no ponto */
+    background: rgba(2, 6, 23, 0.9); /* Fundo escuro */
+    border: 1px solid #334155;
+    padding: 2px 6px;
+    border-radius: 10px;
+    font-size: 10px;
+    font-family: 'Roboto Mono', monospace;
+    color: #fff;
+    z-index: 15; /* Aumentei para garantir que fique acima da linha */
+    
+    /* --- AQUI ESTÁ A MÁGICA DO ARRASTO --- */
+    pointer-events: auto; /* Permite clicar na etiqueta para arrastar */
+    cursor: grab; /* Mostra a mãozinha */
+    user-select: none; /* Impede selecionar o texto enquanto arrasta */
+    /* ------------------------------------- */
+
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    box-shadow: 0 2px 5px rgba(0,0,0,0.5);
+    white-space: nowrap;
+    transition: border-color 0.2s; /* Suaviza a troca de cor */
+}
+
+/* Efeito quando estiver arrastando (opcional) */
+.conn-label:active {
+    cursor: grabbing;
+    transform: translate(-50%, -50%) scale(1.1); /* Aumenta um pouquinho */
+    box-shadow: 0 5px 15px rgba(0,0,0,0.8);
+    z-index: 100; /* Fica na frente de tudo enquanto arrasta */
+}
+
+/* Estilo Download (Received) */
+.label-down {
+    border-color: #39ff14;
+    color: #39ff14;
+}
+
+/* Estilo Upload (Sent) */
+.label-up {
+    border-color: #00ffff;
+    color: #00ffff;
+}
+
+/* Estilo Status/Outros */
+.label-status {
+    border-color: #fbbf24;
+    color: #fbbf24;
+}
+/* BOTÕES DE FILTRO NO MODAL */
+.filter-btn {
+    flex: 1;
+    background: #020617;
+    border: 1px solid #334155;
+    color: #94a3b8;
+    padding: 6px 4px;
+    border-radius: 4px;
+    font-size: 11px;
+    cursor: pointer;
+    transition: all 0.2s;
+    font-family: 'Roboto Mono', monospace;
+}
+
+.filter-btn:hover {
+    border-color: #64748b;
+    color: #fff;
+}
+
+.filter-btn.active {
+    background: rgba(57, 255, 20, 0.15);
+    border-color: #39ff14;
+    color: #39ff14;
+    box-shadow: 0 0 8px rgba(57, 255, 20, 0.2);
+}
+/* --- ESTILOS DO CHAT INTEGRADO --- */
+#fbx-chat-sidebar {
+    position: absolute; /* Mudado de fixed para absolute para ficar dentro do painel */
+    top: 0; right: 0;
+    width: 380px; height: 100%;
+    background-color: #0f172a; /* Cor de fundo do card da topologia */
+    border-left: 1px solid #39ff14; /* Borda neon */
+    z-index: 2000; /* Acima dos nodes (20) e modals (1000) */
+    display: flex; flex-direction: column;
+    transform: translateX(100%);
+    transition: transform 0.4s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+    box-shadow: -5px 0 15px rgba(0,0,0,0.5);
+}
+#neon-topology-panel.chat-open #fbx-chat-sidebar { transform: translateX(0); }
+
+#chat-header {
+    padding: 12px 16px; border-bottom: 1px solid #334155;
+    display: flex; justify-content: space-between; align-items: center;
+    background: #020617; color: #fff;
+}
+#chat-header h3 { margin: 0; font-size: 16px; color: #39ff14; font-family: 'Rajdhani', sans-serif; }
+.chat-control-btn { background: none; border: none; color: #94a3b8; cursor: pointer; font-size: 18px; padding: 0 5px; transition: color 0.2s; }
+.chat-control-btn:hover { color: #fff; }
+
+#chat-body {
+    flex-grow: 1; padding: 16px; overflow-y: auto; display: flex; flex-direction: column; gap: 12px;
+    background: #0f172a; font-family: 'Roboto Mono', monospace; font-size: 12px;
+}
+
+/* Balões de Mensagem */
+.chat-message { padding: 10px 14px; border-radius: 8px; max-width: 90%; word-wrap: break-word; line-height: 1.4; }
+.user-message { background-color: #007bff; color: white; align-self: flex-end; border-bottom-right-radius: 2px; }
+.bot-message { background-color: #1e293b; color: #e2e8f0; border: 1px solid #334155; align-self: flex-start; border-bottom-left-radius: 2px; }
+.bot-message strong { color: #39ff14; }
+
+/* Área de Input */
+#chat-input-area { position: relative; background: #020617; border-top: 1px solid #334155; }
+#chat-input-container { display: flex; padding: 10px; gap: 8px; align-items: center; }
+#chat-input {
+    flex-grow: 1; background: #0f172a; border: 1px solid #334155; color: #fff;
+    padding: 8px; border-radius: 4px; font-size: 12px; resize: none; max-height: 100px; overflow-y: auto; font-family: 'Roboto Mono', monospace;
+}
+#chat-input:focus { outline: none; border-color: #39ff14; }
+#chat-send-btn { background: #39ff14; border: none; color: #000; padding: 8px 14px; border-radius: 4px; cursor: pointer; font-weight: bold; }
+#chat-send-btn:hover { background: #32d612; }
+#quick-questions-toggle-btn { background: none; border: none; color: #94a3b8; cursor: pointer; }
+#quick-questions-toggle-btn:hover { color: #39ff14; }
+
+/* Perguntas Rápidas */
+#chat-quick-questions {
+    position: absolute; bottom: 100%; left: 0; right: 0;
+    background-color: #0f172a; border-top: 1px solid #334155; padding: 10px;
+    visibility: hidden; opacity: 0; transform: translateY(10px); transition: all 0.2s; z-index: 10;
+}
+#chat-quick-questions.open { visibility: visible; opacity: 1; transform: translateY(0); }
+#quick-questions-list { display: flex; flex-direction: column; gap: 5px; max-height: 200px; overflow-y: auto; margin-top: 5px; }
+.quick-question-btn {
+    background: #1e293b; border: 1px solid #334155; color: #94a3b8; padding: 8px;
+    border-radius: 4px; cursor: pointer; text-align: left; font-size: 11px; font-family: 'Roboto Mono'; transition: 0.2s;
+}
+.quick-question-btn:hover { border-color: #39ff14; color: #39ff14; }
+#quick-questions-search { width: 100%; padding: 6px; background: #020617; border: 1px solid #334155; color: #fff; border-radius: 4px; font-size: 11px; }
+
+/* Loading */
+.loading-indicator { font-style: italic; color: #94a3b8; }
+.reasoning-steps { font-size: 10px; color: #64748b; margin-top: 5px; border-left: 2px solid #334155; padding-left: 8px; display: none; }
+.reasoning-steps.expanded { display: block; }
+.show-reasoning-btn { background: none; border: none; color: #007bff; font-size: 10px; cursor: pointer; margin-top: 4px; padding: 0; }
+/* --- CONTROLES SUPERIORES --- */
+.top-controls {
+    position: absolute;
+    top: 10px;
+    right: 10px;
+    display: flex;       /* Faz ficar lado a lado */
+    gap: 10px;           /* Espaço entre os botões */
+    z-index: 999;
+    align-items: center;
+}
+
+/* Estilo do Botão de Chat */
+#fbx-chat-toggle-btn {
+    /* --- CONFIGURAÇÕES DE TAMANHO FIXO (O que você pediu) --- */
+    width: 120px;             /* Largura igual para todos */
+    justify-content: center;  /* Centraliza o conteúdo no meio do botão */
+    padding: 0;
+    background: #000432; /* Laranja */
+    color: rgb(255, 255, 255);
+    border-color: #39ff14;
+    padding: 8px 12px;
+     font-size: 10px;
+    border-radius: 4px;
+    font-weight: bold;
+    cursor: pointer;
+    opacity: 0.9;
+    font-family: 'Rajdhani', sans-serif;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    height: 32px; /* Altura fixa para alinhar com o outro */
+    transition: 0.2s;
+}
+#fbx-chat-toggle-btn:hover {
+    opacity: 1;
+    transform: scale(1.05);
+}
+
+/* Atualização do Botão Salvar (Para remover o absolute antigo) */
+#save-layout-btn {
+    position: static !important; /* Importante: Remove o absolute antigo */
+    top: auto;
+    right: auto;
+    background: #000432; /* Laranja */
+    color: rgb(255, 255, 255);
+    border: 2px solid #39ff14;
+    padding: 8px 12px;
+    font-size: 10px;
+    border-radius: 4px;
+    font-weight: bold;
+    cursor: pointer;
+    opacity: 0.8;
+    transition: 0.2s;
+    font-family: 'Rajdhani', sans-serif;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    height: 32px; /* Mesma altura do chat */
+    /* --- CONFIGURAÇÕES DE TAMANHO FIXO (O que você pediu) --- */
+    width: 120px;             /* Largura igual para todos */
+    justify-content: center;  /* Centraliza o conteúdo no meio do botão */
+    padding: 0;
+}
+#save-layout-btn:hover {
+    opacity: 1;
+    transform: scale(1.05);
+}
+/* Botão de Relatório */
+#btn-report {
+    background: #000432; /* Laranja */
+    color: rgb(255, 255, 255);
+    border-color: #39ff14;
+    /* --- CONFIGURAÇÕES DE TAMANHO FIXO (O que você pediu) --- */
+    width: 120px;             /* Largura igual para todos */
+    justify-content: center;  /* Centraliza o conteúdo no meio do botão */
+    padding: 0;
+    font-size: 10px;
+    padding: 8px 12px;
+    border-radius: 4px;
+    font-weight: bold;
+    cursor: pointer;
+    opacity: 0.9;
+    font-family: 'Rajdhani', sans-serif;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    height: 32px;
+    transition: 0.2s;
+}
+#btn-report:hover {
+    opacity: 1;
+    transform: scale(1.05);
+}
+/* --- ZOOM E PAN (NOVO) --- */
+
+/* Container que recebe o Zoom */
+#zoom-stage {
+    width: 100%; 
+    height: 100%;
+    transform-origin: 0 0; /* Garante que o cálculo X/Y comece do topo/esquerda */
+    will-change: transform; /* Otimiza a performance da animação */
+}
+
+/* Ajuste na Grade para o Pan funcionar */
+.bg-grid {
+    position: absolute; 
+    top: 0; left: 0; width: 100%; height: 100%;
+    background-image: linear-gradient(rgba(255, 255, 255, 0.05) 1px, transparent 1px),
+                      linear-gradient(90deg, rgba(255, 255, 255, 0.05) 1px, transparent 1px);
+    background-size: 30px 30px; 
+    pointer-events: none; 
+    z-index: 0;
+    will-change: background-position, background-size;
+}
+
+/* Controles (Botões no canto inferior esquerdo) */
+.zoom-controls {
+    position: absolute;
+    bottom: 20px;
+    left: 20px;
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+    z-index: 999; /* Fica acima do grid, mas abaixo de modais */
+}
+
+.zoom-controls button {
+    background: #0f172a;
+    border: 1px solid #334155;
+    color: #94a3b8;
+    width: 32px;
+    height: 32px;
+    border-radius: 4px;
+    cursor: pointer;
+    transition: all 0.2s;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 14px;
+}
+
+.zoom-controls button:hover {
+    background: #39ff14;
+    color: #000;
+    border-color: #39ff14;
+    box-shadow: 0 0 10px rgba(57, 255, 20, 0.4);
+    transform: scale(1.1);
+}
+
+.zoom-controls button:active {
+    transform: scale(0.95);
+}
+
+/* Cursores para o modo de arrastar a tela (Pan) */
+.is-panning {
+    cursor: grab !important;
+}
+.is-panning:active {
+    cursor: grabbing !important;
+}
+/* Correção do Botão de Visão */
+#btn-toggle-view {
+      width: 120px;             /* Largura igual para todos */
+    justify-content: center;  /* Centraliza o conteúdo no meio do botão */
+    padding: 0;
+    background: #000432; /* Laranja */
+    color: rgb(255, 255, 255);
+    border-color: #39ff14;
+    padding: 8px 12px;
+     font-size: 10px;
+    border-radius: 4px;
+    font-weight: bold;
+    cursor: pointer;
+    opacity: 0.9;
+    font-family: 'Rajdhani', sans-serif;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    height: 32px; /* Altura fixa para alinhar com o outro */
+    transition: 0.2s;
+}
+#btn-toggle-view:hover {
+    opacity: 1;
+    transform: scale(1.05);
+    
+}
+/* --- ESTILO REFINADO PARA O MODAL DE REGRAS DE COR --- */
+
+/* Ajuste no cabeçalho das colunas */
+.color-rules-header {
+    display: grid;
+    grid-template-columns: 80px 1fr 40px; /* Colunas fixas para alinhar com inputs */
+    gap: 15px;
+    padding: 8px 10px;
+    font-size: 11px;
+    color: #94a3b8;
+    text-transform: uppercase;
+    font-weight: 700;
+    border-bottom: 1px solid #334155;
+    margin-bottom: 15px; /* Mais espaço abaixo do cabeçalho */
+}
+
+/* Container da lista de regras (Scrolável se tiver muitas) */
+#link-rules-list {
+    max-height: 250px;
+    overflow-y: auto;
+    padding-right: 5px; /* Espaço para scrollbar não cobrir conteúdo */
+    margin-bottom: 15px;
+}
+
+/* Linha de regra individual (Inputs e Botão Excluir) */
+.rule-row {
+    display: grid;
+    grid-template-columns: 80px 1fr 40px; /* Mesma grid do header para alinhar */
+    gap: 15px;
+    align-items: center;
+    margin-bottom: 10px; /* Espaçamento entre as linhas */
+    padding: 8px;
+    background: rgba(2, 6, 23, 0.6); /* Fundo sutil para destacar a linha */
+    border: 1px solid rgba(255, 255, 255, 0.05);
+    border-radius: 6px;
+    transition: background 0.2s;
+}
+
+.rule-row:hover {
+    background: rgba(2, 6, 23, 0.9);
+    border-color: rgba(255, 255, 255, 0.1);
+}
+
+/* Inputs dentro da regra */
+.rule-input {
+    width: 100%;
+    background: #0f172a;
+    border: 1px solid #334155;
+    color: #fff;
+    padding: 6px;
+    border-radius: 4px;
+    font-family: 'Roboto Mono', monospace;
+    font-size: 13px;
+    text-align: center;
+}
+
+.rule-input:focus {
+    border-color: #39ff14;
+    outline: none;
+}
+
+/* Seletor de Cor (Input Color) */
+.rule-color {
+    width: 100%;
+    height: 32px;
+    padding: 0;
+    border: 1px solid #334155;
+    background: none;
+    border-radius: 4px;
+    cursor: pointer;
+}
+
+/* Botão de Remover (Lixeira) */
+.btn-remove-rule {
+    background: #ef4444;
+    color: white;
+    border: none;
+    border-radius: 4px;
+    width: 100%;
+    height: 32px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    opacity: 0.8;
+    transition: 0.2s;
+}
+
+.btn-remove-rule:hover {
+    opacity: 1;
+    background: #dc2626;
+    transform: scale(1.05);
+}
+
+/* --- O BOTÃO "ADICIONAR REGRA" (Melhoria Solicitada) --- */
+.add-rule-btn {
+    width: 100%;
+    background: #1e293b;
+    border: 1px dashed #475569;
+    color: #94a3b8;
+    padding: 12px;
+    margin-top: 10px;
+    margin-bottom: 25px; /* Espaço generoso abaixo para não colar nos botões de ação */
+    cursor: pointer;
+    border-radius: 6px;
+    font-size: 12px;
+    font-weight: 700;
+    text-transform: uppercase;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    transition: all 0.2s ease-in-out;
+}
+
+.add-rule-btn:hover {
+    border-color: #39ff14;
+    color: #39ff14;
+    background: rgba(57, 255, 20, 0.05);
+    transform: translateY(-2px);
+    box-shadow: 0 4px 10px rgba(0, 0, 0, 0.2);
+}
+
+.add-rule-btn:active {
+    transform: translateY(0);
+}
