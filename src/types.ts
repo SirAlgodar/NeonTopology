@@ -7,6 +7,7 @@ export interface TopologyNode {
   height?: number;
   icon?: string;
   metricBind?: string;
+  isCritical?: boolean; // New: prevents removal
 }
 
 export interface Breakpoint {
@@ -27,9 +28,20 @@ export interface TopologyLink {
   breakpoints?: Breakpoint[];
 }
 
+export interface AuditLogEntry {
+  id: string;
+  timestamp: number;
+  action: 'create' | 'update' | 'delete';
+  targetType: 'node' | 'link';
+  targetId: string;
+  details?: string;
+  user?: string; // Optional user info if available
+}
+
 export interface PanelOptions {
-  nodes?: TopologyNode[];
-  links?: TopologyLink[];
+  nodes: TopologyNode[]; // Changed to required
+  links: TopologyLink[]; // Changed to required
+  auditLogs?: AuditLogEntry[]; // New: audit logs
   zoomScale: number;
   apiKey?: string;
   showChat: boolean;

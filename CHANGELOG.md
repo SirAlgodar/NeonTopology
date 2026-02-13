@@ -1,5 +1,16 @@
 # Registro de Alterações
 
+## 1.0.1 (2026-02-13)
+
+### Funcionalidades
+
+- **Prevenção de Ciclos**: Implementação de detecção de loops em tempo real para impedir conexões cíclicas na topologia.
+- **Auditoria de Operações**: Sistema de logs de auditoria para rastrear criação, atualização e remoção de elementos, com histórico rotativo.
+- **Histórico de Edição**: Funcionalidade completa de Undo/Redo para operações de nós e links.
+- **Otimização de Performance**: Melhoria no parsing de métricas utilizando Map para acesso O(1), suportando maior volume de dados.
+- **Proteção de Elementos**: Validação para impedir remoção de nós marcados como críticos.
+- **Interface**: Melhorias visuais e validações na criação de links (prevenção de auto-conexão e duplicatas).
+
 ## 1.0.0 (2026-02-13)
 
 ### Funcionalidades

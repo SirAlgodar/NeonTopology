@@ -2,6 +2,7 @@ import { PanelPlugin } from '@grafana/data';
 import { NeonTopologyPanel } from './components/NeonTopologyPanel';
 import { PanelOptions } from './types';
 import { strings } from './locales/en';
+import { INITIAL_NODES, INITIAL_LINKS } from './constants';
 
 export const plugin = new PanelPlugin<PanelOptions>(NeonTopologyPanel).setPanelOptions((builder) => {
   return builder
@@ -24,5 +25,10 @@ export const plugin = new PanelPlugin<PanelOptions>(NeonTopologyPanel).setPanelO
         settings: {
             inputType: 'password',
         }
-    });
+    })
+    // Note: 'nodes' and 'links' are not exposed in the UI builder because they are managed
+    // interactively by the panel. We just need to ensure they have default values.
+    // However, PanelPlugin doesn't let us set defaults for hidden options easily here unless
+    // we use .setPanelOptionsDefaults (deprecated) or ensure the component handles undefined.
+    // We will handle undefined in the component by falling back to INITIAL_NODES/LINKS.
 });
